@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# -e option used to multi-process for one line
+#echo "hello world" | sed  -e 's/^\(.\{5\}\).*/\1/' -e 's/.*\(.\{2\}\)$/\1/'
+# if only one process is needed, there's no need for -e option
+#echo "hello world" | sed 's/^\(.\{5\}\).*/\1/'
+
+#echo `adquery user afp1 --attribute _ObjectExtended | sed -e 's|^\(^[0-9a-f]\{8\}\).*|\1|'`
+uuid=`adquery user $1 --attribute _ObjectExtended`
+uuid=`echo ${uuid:0:8} | tr '[a-f]' '[A-F]' | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/'`
+echo uuid: $uuid
+uuid=`echo "ibase=16; $uuid" | bc`
+mask=`echo "ibase=16; 7FFFFFFF" | bc`
+uuid=$(($uuid&$mask))
+echo uid: $uuid
+
+#printf "%d\n" 0x$uuid
+#

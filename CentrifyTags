@@ -1,0 +1,8 @@
+#!/bin/bash
+#Author Bill.Zhao
+#This Shell Script is for building C++ tags file for Centrify Project
+#Thanks the command below, I learn more ctags knowledge from it.
+#ctags -R --languages=c++ --langmap=c++:+.inl -h +.inl --c++-kinds=+px--fields=+aiKSz --extra=+q --exclude=lex.yy.cc --exclude=copy_lex.yy.cc
+
+ctags -R --languages=c++,perl --exclude=external --exclude=windows --extra=+q .
+
