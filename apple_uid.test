@@ -6,14 +6,13 @@
 #echo "hello world" | sed 's/^\(.\{5\}\).*/\1/'
 
 #echo `adquery user afp1 --attribute _ObjectExtended | sed -e 's|^\(^[0-9a-f]\{8\}\).*|\1|'`
-uuid=`adquery user afp1 --attribute _ObjectExtended`
-echo $uuid
+uuid=`adquery user $1 --attribute _ObjectExtended`
 uuid=`echo ${uuid:0:8} | tr '[a-f]' '[A-F]' | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/'`
-mask=`${uuid:0:1}`
-mask=echo $mask | tr '[89A-F]' '[0-7]'
-uuid=`echo $uuid | sed "s/^./$mask/"`
-echo $uuid
+echo uuid: $uuid
+uuid=`echo "ibase=16; $uuid" | bc`
+mask=`echo "ibase=16; 7FFFFFFF" | bc`
+uuid=$(($uuid&$mask))
+echo uid: $uuid
 
 #printf "%d\n" 0x$uuid
 #
-echo "ibase=16; $uuid" | bc
