@@ -1,0 +1,5 @@
+#!/bin/bash
+
+#Changing host name
+hostname
+sudo scutil --set HostName bzMacMini.local

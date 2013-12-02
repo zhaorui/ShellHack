@@ -1,0 +1,157 @@
+#!/bin/bash
+#
+# Auto-zone getent_apple test
+
+############################################################
+# Function:     gen_apple_id
+# Parameter:    NAME - object's name, 
+#               TYPE - user or group
+# Return:       $APPLEID
+# Description:
+#   Calculate AD object's apple uid/gid according to their GUID
+
+gen_apple_id()
+{
+    set -x
+    local NAME=$1
+    local TYPE=$2
+    local MASK=`echo "ibase=16; 7FFFFFFF" | bc`
+    local UUID=`adquery $TYPE $NAME --attribute _ObjectExtended`
+    #if user not exist or have other mistakes, return empty
+    if [ -z "$UUID" ];then
+        error "Failed to get attribute _ObjectExtended from $NAME"
+        return  
+    fi
+    UUID=`echo ${UUID:0:8} | tr '[a-f]' '[A-F]' | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/'`
+    UUID=`echo "ibase=16; $UUID" | bc`
+    local APPLEID=$(($UUID&$MASK))
+    echo $APPLEID
+    set +x
+}
+
+############################################################
+# Function:	get_primary_group
+# Prameter:	USER - user's name
+# Return:	The AD primary Group name of the User
+# Description:
+#   Get the AD Primary Group of the user
+
+get_primary_group()
+{
+    local USER=$1
+    local AD_PRIMARY_GROUP=`adquery user $USER --attribute primaryGroupID`
+    if [ -z "$AD_PRIMARY_GROUP" ];then
+        error "Failed to get attribute priamryGroupID from $USER"
+        return
+    fi
+    local PRIMARY_GROUP_SID=`adquery user $USER --attribute _SID | sed "s/[^-]*$/$AD_PRIMARY_GROUP/"`
+    if [ -z "$PRIMARY_GROUP_SID" ];then
+        error "Failed to get attribute _SID from $USER"
+        return
+    fi
+    PRIMARY_GROUP_SID="<SID=$PRIMARY_GROUP_SID>"
+    $CIMS_DIR/lib/capi/TestLdapFetch -a GUID "$PRIMARY_GROUP_SID" | grep "^CN=" | sed "s/^CN=\([^,]*\),.*/\1/"
+    if [ $? -ne 0 ];then
+        error "Run TestLdapFetch failed"
+    fi
+}
+
+keywords_required()
+{
+    echo "domain standard-user auto-zone"
+}
+
+test_init()
+{
+    CMD="getent passwd ${SMK_USER}"
+}
+
+command_line()
+{
+    echo "$CMD"
+}
+
+setup_test()
+{
+    SaveConfFiles
+    # Use the apple method to generate uid/gid
+    AddConfParam centrifydc.conf "auto.schema.apple_scheme: true"
+    AddConfParam centrifydc.conf "auto.schema.primary.gid: -1"
+
+    # Must restart after changing auto.schema.apple_scheme
+    ADJoin && ADClientRestart || return $FAILURE
+
+    #if running in readonly site, we need to wait replication between DCs 
+    #and wait switching from rwdc to rodc
+    switch_to_rodc $SMK_PDC 
+}
+
+run_test()
+{
+    # basic test..
+    run getent passwd ${SMK_USER}
+    if [ $? -ne 0 ]; then
+	error "User ${SMK_USER} not found !"
+        return $FAILURE
+    fi
+
+    # get the Active Directory primary group of user smoke2k3-test1
+    AD_PRIMARY_GROUP_ID=$(get_primary_group ${SMK_USER})
+    EXPECT_GID=$(gen_apple_id "$AD_PRIMARY_GROUP_ID" "group")
+
+    # Test apple uid/pgid correctness
+    EXPECT_UID=$(gen_apple_id ${SMK_USER} "user")
+    
+    EXPECTED="${SMK_USER}:x:$EXPECT_UID:$EXPECT_GID:${SMK_USER}:${USER_HOMEDIR}/${SMK_USER}:$USER_SHELL"
+
+    verbose "Expected $EXPECTED"
+    verbose "got      $RUN_RESULT"
+    if [ "$EXPECTED" != "$RUN_RESULT" ]; then
+        return $FAILURE
+    fi
+
+    # Test reverse UID lookup
+    adflush && flush_os_cache
+    run getent passwd $EXPECT_UID
+
+    verbose "Expected $EXPECTED"
+    verbose "got      $RUN_RESULT"
+    if [ "$EXPECTED" != "$RUN_RESULT" ]; then
+        return $FAILURE
+    fi
+
+    # Test apple gid correctness
+    # All smoketest machines must have a clowns group
+    # with these members
+    run getent group clowns
+    if [ $? -ne 0 ]; then
+        return $FAILURE
+    fi
+
+    EXPECT_GID=$(gen_apple_id "clowns" "group")
+    EXPECTED="clowns:$EXPECT_GID:badname,bozo,gbush,krusty"
+    
+    verbose "Expected $EXPECTED"
+    verbose "got      $RUN_RESULT"
+    if [ "$EXPECTED" != "$RUN_RESULT" ]; then
+        return $FAILURE
+    fi
+
+    # Test reverse GID lookup
+    adflush && flush_os_cache
+    run getent group $EXPECT_GID
+
+    verbose "Expected $EXPECTED"
+    verbose "got      $RUN_RESULT"
+    if [ "$EXPECTED" != "$RUN_RESULT" ]; then
+        return $FAILURE
+    fi
+
+}
+
+cleanup_test()
+{
+    RestoreConfFiles
+    # Ensure ADClient is still running
+    IsADClientUp && ADClientRestart
+}

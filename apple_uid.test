@@ -6,13 +6,28 @@
 #echo "hello world" | sed 's/^\(.\{5\}\).*/\1/'
 
 #echo `adquery user afp1 --attribute _ObjectExtended | sed -e 's|^\(^[0-9a-f]\{8\}\).*|\1|'`
-uuid=`adquery user $1 --attribute _ObjectExtended`
-uuid=`echo ${uuid:0:8} | tr '[a-f]' '[A-F]' | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/'`
-echo uuid: $uuid
-uuid=`echo "ibase=16; $uuid" | bc`
-mask=`echo "ibase=16; 7FFFFFFF" | bc`
-uuid=$(($uuid&$mask))
-echo uid: $uuid
+gen_apple_id()
+{
+    local NAME=$1
+    local TYPE=$2
+    local MASK=`echo "ibase=16; 7FFFFFFF" | bc`
+    local UUID=`adquery $TYPE "$NAME" --attribute _ObjectExtended`
+    #if user not exist or have other mistakes, return 
+    if [ -z $UUID ];
+    then
+        echo "Failed to get uuid attribute from $NAME"
+        return  
+    fi  
+    UUID=`echo ${UUID:0:8} | tr '[a-f]' '[A-F]' | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/'`
+    UUID=`echo "ibase=16; $UUID" | bc`
+    local APPLEID=$(($UUID&$MASK))
+    echo $APPLEID
+}
 
-#printf "%d\n" 0x$uuid
-#
+USERID=$(gen_apple_id "ooo" "user")
+
+if [ -z $USERID ]
+then
+    echo "wrong ID"
+fi
+echo $USERID
