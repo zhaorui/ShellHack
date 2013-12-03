@@ -12,21 +12,29 @@
 
 gen_apple_id()
 {
-    set -x
     local NAME=$1
     local TYPE=$2
     local MASK=`echo "ibase=16; 7FFFFFFF" | bc`
-    local UUID=`adquery $TYPE $NAME --attribute _ObjectExtended`
+    local GUID=`adquery $TYPE "$NAME" --attribute _ObjectExtended`
+    local count=0
+    
+    # When adquery group "Domain Users" need to wait a while to get the result
+    while [ -z "$GUID" -a $count -lt 10 ]
+    do
+        GUID=`adquery $TYPE "$NAME" --attribute _ObjectExtended`
+        sleep 1
+        ((count++))
+    done
+
     #if user not exist or have other mistakes, return empty
-    if [ -z "$UUID" ];then
+    if [ -z "$GUID" ];then
         error "Failed to get attribute _ObjectExtended from $NAME"
         return  
     fi
-    UUID=`echo ${UUID:0:8} | tr '[a-f]' '[A-F]' | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/'`
-    UUID=`echo "ibase=16; $UUID" | bc`
-    local APPLEID=$(($UUID&$MASK))
+    GUID=`echo ${GUID:0:8} | tr '[a-f]' '[A-F]' | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/'`
+    GUID=`echo "ibase=16; $GUID" | bc`
+    local APPLEID=$(($GUID&$MASK))
     echo $APPLEID
-    set +x
 }
 
 ############################################################
@@ -39,12 +47,12 @@ gen_apple_id()
 get_primary_group()
 {
     local USER=$1
-    local AD_PRIMARY_GROUP=`adquery user $USER --attribute primaryGroupID`
-    if [ -z "$AD_PRIMARY_GROUP" ];then
+    local AD_PRIMARY_GROUP_ID=`adquery user $USER --attribute primaryGroupID`
+    if [ -z "$AD_PRIMARY_GROUP_ID" ];then
         error "Failed to get attribute priamryGroupID from $USER"
         return
     fi
-    local PRIMARY_GROUP_SID=`adquery user $USER --attribute _SID | sed "s/[^-]*$/$AD_PRIMARY_GROUP/"`
+    local PRIMARY_GROUP_SID=`adquery user $USER --attribute _SID | sed "s/[^-]*$/$AD_PRIMARY_GROUP_ID/"`
     if [ -z "$PRIMARY_GROUP_SID" ];then
         error "Failed to get attribute _SID from $USER"
         return
@@ -95,13 +103,11 @@ run_test()
         return $FAILURE
     fi
 
-    # get the Active Directory primary group of user smoke2k3-test1
-    AD_PRIMARY_GROUP_ID=$(get_primary_group ${SMK_USER})
-    EXPECT_GID=$(gen_apple_id "$AD_PRIMARY_GROUP_ID" "group")
-
     # Test apple uid/pgid correctness
-    EXPECT_UID=$(gen_apple_id ${SMK_USER} "user")
-    
+    EXPECT_UID=$(gen_apple_id "${SMK_USER}" "user")
+    # get the Active Directory primary group of user smoke2k3-test1
+    AD_PRIMARY_GROUP=$(get_primary_group ${SMK_USER})
+    EXPECT_GID=$(gen_apple_id "$AD_PRIMARY_GROUP" "group")
     EXPECTED="${SMK_USER}:x:$EXPECT_UID:$EXPECT_GID:${SMK_USER}:${USER_HOMEDIR}/${SMK_USER}:$USER_SHELL"
 
     verbose "Expected $EXPECTED"
