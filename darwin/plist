@@ -1,0 +1,5 @@
+plutil -convert xml1 com.apple.MCX.plist
+convert plist file to xml
+
+plutil -convert binary1 com.apple.MCX.plist
+convert plist file to binary
