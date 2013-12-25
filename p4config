@@ -1,0 +1,5 @@
+P4CLIENT=CDCode
+P4PASSWD=apple123
+P4PORT=192.168.6.212:7777
+P4USER=bill.zhao
+P4HOST=bzMacMini.local
