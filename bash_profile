@@ -10,3 +10,17 @@ export https_proxy=192.168.4.12:8080
 # useful functions
 cleanpam() { cd /etc/pam.d; for i in `ls *.pre_cdc`; do sudo mv $i ${i%.*}; done; }
 when() { ls -ld $1 | awk '{print $6, $7, $8}'; }
+vimpl()
+{
+    #Here we use the indirect referencing, example as below
+    #ref=fruit
+    #fruit=apple
+    #echo ${ref}
+    #>fruit
+    #echo ${!ref}
+    #>apple
+    local plist_file=${!#}
+    plutil -convert xml1 $plist_file
+    vim $*
+    plutil -convert binary1 $plist_file
+}
