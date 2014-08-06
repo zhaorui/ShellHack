@@ -12,8 +12,15 @@ cleanpam() { cd /etc/pam.d; for i in `ls *.pre_cdc`; do sudo mv $i ${i%.*}; done
 when() { ls -ld $1 | awk '{print $6, $7, $8}'; }
 vimpl()
 {
-    local plist_file=$1
+    #Here we use the indirect referencing, example as below
+    #ref=fruit
+    #fruit=apple
+    #echo ${ref}
+    #>fruit
+    #echo ${!ref}
+    #>apple
+    local plist_file=${!#}
     sudo plutil -convert xml1 $plist_file
-    vim $plist_file
+    vim $*
     sudo plutil -convert binary1 $plist_file
 }
