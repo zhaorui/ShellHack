@@ -2,11 +2,13 @@ syntax on
 set nu
 set ru
 set hlsearch
-set incsearch
-set ic
+set incsearch "show the next match while entering a search
+set ic "ignore case
+set smartcase "smart case, when the search pattern contain capital word, it would be case sensitive
 set tags=./tags,../tags,../../tags,../../../tags
 set softtabstop=4 shiftwidth=4 expandtab
 set autoindent
+set nows "set nowrapscan
 
 
 """"""""""""""""""""""""""""""
