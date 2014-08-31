@@ -21,7 +21,7 @@ vimpl()
     #>fruit
     #echo ${!ref}
     #>apple
-    local plist_file=${!#}
+    local plist_file=${!#}  #This command is equal to   eval echo \$$#
     sudo plutil -convert xml1 $plist_file
     vim $*
     sudo plutil -convert binary1 $plist_file
