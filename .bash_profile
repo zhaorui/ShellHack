@@ -40,3 +40,22 @@ sysnot()
     sudo launchctl unload /System/Library/LaunchDaemons/com.apple.syslogd.plist
     sudo launchctl load /System/Library/LaunchDaemons/com.apple.syslogd.plist
 }
+
+authwrite()
+{
+    rules=('admin' 'allow' 'authenticate')
+    for i in ${rules[@]}
+    do
+        if [ $2 = $i ]
+        then
+            sudo security authorizationdb write $1 $2
+            return
+        fi
+    done
+    sudo security authorizationdb write $1 < $2 
+}
+
+authread()
+{
+    security authorizationdb read $1
+}
