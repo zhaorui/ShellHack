@@ -1,0 +1,11 @@
+#!/bin/bash
+
+SOURCE=/Users/billzhao/CDCode/Suite/DC/unix
+cd /
+find $SOURCE  \
+    -path "$SOURCE/etc" -prune -o \
+    -path "$SOURCE/perl" -prune -o \
+    -path "$SOURCE/tests" -prune -o \
+    -path "$SOURCE/external" -prune -o \
+    -name "*.cpp" -print -o \
+    -name "*.[ch]" -print > /Users/billzhao/Cscope/cscope.files

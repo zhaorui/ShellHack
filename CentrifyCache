@@ -1,0 +1,11 @@
+#!/bin/bash
+sudo /usr/share/centrifydc/bin/centrifydc stop
+for i in `ls /var/centrifydc/*.cache /var/centrifydc/*.idx`
+do
+    cache=`basename $i`
+    sudo /usr/share/centrifydc/bin/adcache -c $i  -o /tmp/$cache
+done
+sudo /usr/share/centrifydc/bin/centrifydc start
+
+
+
